@@ -11,9 +11,10 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;700&family=Share+Tech+Mono&display=swap" rel="stylesheet">
 
-  <!-- HUD Stylesheets -->
+  <!-- HUD & Splash Stylesheets -->
   <link rel="stylesheet" href="./css/hud.css">
   <link rel="stylesheet" href="./css/dossier.css">
+  <link rel="stylesheet" href="./css/splash.css">
 
   <!-- Import Map for Three.js -->
   <script type="importmap">
@@ -29,6 +30,46 @@
   <!-- CRT SCANLINES & VIGNETTE EFFECTS -->
   <div class="scanlines"></div>
   <div class="vignette"></div>
+
+  <!-- CINEMATIC TACTICAL SPLASH SCREEN -->
+  <div id="cyber-splash" class="cyber-splash">
+    <div class="splash-container">
+      <div class="splash-header">
+        <div class="splash-radar">
+          <div class="splash-radar-sweep"></div>
+          <div class="splash-radar-core"></div>
+        </div>
+        <div class="splash-title-box">
+          <h1>THREATSPHERE 3D</h1>
+          <div class="splash-subtitle">GLOBAL CYBER DEFENSE C2 TERMINAL</div>
+        </div>
+        <div class="splash-classification">
+          LEVEL 5 // TOP SECRET
+        </div>
+      </div>
+
+      <div class="splash-console">
+        <!-- Animated diagnostic logs injected by SplashScreen.js -->
+      </div>
+
+      <div class="splash-progress-wrapper">
+        <div class="progress-header">
+          <span>SYSTEM CALIBRATION & SENSOR SYNC</span>
+          <span class="progress-pct">0%</span>
+        </div>
+        <div class="splash-progress-bar">
+          <div class="splash-progress-fill"></div>
+        </div>
+      </div>
+
+      <div class="splash-action-row">
+        <div class="splash-status-notice">CONNECTING TO GLOBAL SENSOR GRID...</div>
+        <button class="btn-enter-terminal">
+          <span>ENTER TERMINAL</span> ➔
+        </button>
+      </div>
+    </div>
+  </div>
 
   <div class="app-container">
     <!-- 3D WEBGL GLOBE CANVAS -->

@@ -1,7 +1,7 @@
 /**
  * ThreatSphere 3D - Main Application Bootstrap & System Coordinator
  * Orchestrates 3D Globe, Real-World Cyber Ingestion, Attack Trajectories,
- * Dossier Drawer, and Web Audio Synthesizer.
+ * Dossier Drawer, Web Audio Synthesizer, and Cinematic Splash Screen.
  */
 
 import { CyberGlobe } from './core/Globe.js';
@@ -11,6 +11,7 @@ import { LiveRealWorldFeedAdapter, HybridFeedAdapter, SimulatedFeedAdapter } fro
 import { TelemetryFeed } from './ui/TelemetryFeed.js';
 import { DossierDrawer } from './ui/DossierDrawer.js';
 import { HUDController } from './ui/HUD.js';
+import { SplashScreen } from './ui/SplashScreen.js';
 
 class ThreatSphereApp {
   constructor() {
@@ -22,6 +23,7 @@ class ThreatSphereApp {
     this.telemetryFeed = null;
     this.dossierDrawer = null;
     this.hud = null;
+    this.splash = null;
 
     this._bootstrap();
   }
@@ -46,11 +48,14 @@ class ThreatSphereApp {
       }
     });
 
-    // 4. Dossier Drawer
+    // 4. Dossier Drawer with Holographic Defense Shield
     const drawerEl = document.getElementById('dossier-drawer');
     this.dossierDrawer = new DossierDrawer(drawerEl, {
       onFocusGlobe: (lat, lon) => {
         this.globe.focusOn(lat, lon, 240, 1400);
+      },
+      onDeployShield: (lat, lon) => {
+        this.globe.deployShield(lat, lon);
       },
       onSoundClick: () => {
         this.sound.playClick();
@@ -111,17 +116,15 @@ class ThreatSphereApp {
       }
     );
 
-    // Sync initial audio button UI
     this.hud.updateAudioButton(this.sound.isMuted);
 
     // 7. Initialize Ingestion Adapters
     this.adapters = {
-      LIVE: new LiveRealWorldFeedAdapter({ intervalMs: 1500 }),
-      HYBRID: new HybridFeedAdapter({ intervalMs: 1400 }),
-      SIM: new SimulatedFeedAdapter({ intervalMs: 1400 })
+      LIVE: new LiveRealWorldFeedAdapter({ intervalMs: 1400 }),
+      HYBRID: new HybridFeedAdapter({ intervalMs: 1300 }),
+      SIM: new SimulatedFeedAdapter({ intervalMs: 1300 })
     };
 
-    // Attack listener handler
     const onIncidentReceived = (attack) => {
       this.sound.playLaunch();
       this.trajectories.spawnTrajectory(attack);
@@ -133,10 +136,18 @@ class ThreatSphereApp {
       adapter.onAttack(onIncidentReceived);
     });
 
-    // Start with LIVE REAL-WORLD Feed by default!
+    // Start with LIVE REAL-WORLD Feed
     this.setFeedMode('LIVE');
 
-    // User gesture listener to unlock Web Audio context
+    // 8. Cinematic Splash Screen
+    const splashEl = document.getElementById('cyber-splash');
+    if (splashEl) {
+      this.splash = new SplashScreen(splashEl, () => {
+        console.log('[ThreatSphere 3D] Splash boot complete. Terminal active.');
+      });
+    }
+
+    // Audio unlock listener
     const unlockAudio = () => {
       this.sound.initContext();
       window.removeEventListener('pointerdown', unlockAudio);
@@ -145,13 +156,9 @@ class ThreatSphereApp {
     window.addEventListener('pointerdown', unlockAudio, { once: true });
     window.addEventListener('keydown', unlockAudio, { once: true });
 
-    console.log('[ThreatSphere 3D] Operational. Real-world telemetry active.');
+    console.log('[ThreatSphere 3D] Operational. Real-world telemetry streaming.');
   }
 
-  /**
-   * Switches the active telemetry stream
-   * @param {'LIVE'|'HYBRID'|'SIM'} mode
-   */
   setFeedMode(mode) {
     if (this.activeFeedAdapter) {
       this.activeFeedAdapter.stop();
@@ -166,28 +173,16 @@ class ThreatSphereApp {
     }
   }
 
-  /**
-   * Bidirectional Cross-filtering: focus globe, highlight 3D trajectory, open dossier
-   * @param {object} attack
-   */
   selectIncident(attack) {
     this.sound.playClick();
 
-    // 1. Highlight in Telemetry Feed
     this.telemetryFeed.highlightItem(attack.id);
-
-    // 2. Highlight trajectory in 3D
     this.trajectories.selectAttack(attack.id);
-
-    // 3. Smooth camera focus onto target coordinates
     this.globe.focusOn(attack.target.lat, attack.target.lon, 230, 1300);
-
-    // 4. Open structured Threat Dossier
     this.dossierDrawer.open(attack);
   }
 }
 
-// Instantiate on DOM ready
 window.addEventListener('DOMContentLoaded', () => {
   window.threatSphere = new ThreatSphereApp();
 });

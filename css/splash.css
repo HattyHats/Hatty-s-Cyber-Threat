@@ -1,0 +1,242 @@
+/**
+ * ThreatSphere 3D - Tactical Cyber Splash Screen & Boot Sequence
+ * Ultra-cinematic military command center boot sequence.
+ */
+
+.cyber-splash {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background: radial-gradient(circle at center, #0a1428 0%, #040813 60%, #020409 100%);
+  z-index: 10000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: opacity 0.8s cubic-bezier(0.16, 1, 0.3, 1), visibility 0.8s;
+  overflow: hidden;
+}
+
+.cyber-splash.fade-out {
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+}
+
+.splash-container {
+  width: 90%;
+  max-width: 680px;
+  background: rgba(8, 16, 34, 0.88);
+  border: 1px solid var(--border-bright);
+  padding: 32px 36px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  position: relative;
+  box-shadow: 0 0 50px rgba(0, 240, 255, 0.25), inset 0 0 30px rgba(0, 240, 255, 0.05);
+  backdrop-filter: blur(16px);
+}
+
+/* Corner Tactical Brackets */
+.splash-container::before, .splash-container::after {
+  content: '';
+  position: absolute;
+  width: 16px;
+  height: 16px;
+  border-color: var(--color-cyan);
+  pointer-events: none;
+}
+.splash-container::before {
+  top: -2px;
+  left: -2px;
+  border-top: 3px solid var(--color-cyan);
+  border-left: 3px solid var(--color-cyan);
+}
+.splash-container::after {
+  bottom: -2px;
+  right: -2px;
+  border-bottom: 3px solid var(--color-cyan);
+  border-right: 3px solid var(--color-cyan);
+}
+
+.splash-header {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  border-bottom: 1px solid var(--border-subtle);
+  padding-bottom: 18px;
+}
+
+.splash-radar {
+  width: 54px;
+  height: 54px;
+  border: 2px solid var(--color-cyan);
+  border-radius: 50%;
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 0 20px rgba(0, 240, 255, 0.4);
+}
+
+.splash-radar-sweep {
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  background: conic-gradient(from 0deg, rgba(0, 240, 255, 0.5) 0deg, transparent 90deg);
+  animation: radar-spin 2s linear infinite;
+}
+
+@keyframes radar-spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+.splash-radar-core {
+  width: 12px;
+  height: 12px;
+  background: #ffffff;
+  border-radius: 50%;
+  box-shadow: 0 0 10px #ffffff;
+  z-index: 2;
+}
+
+.splash-title-box h1 {
+  font-size: 22px;
+  font-weight: 700;
+  letter-spacing: 3px;
+  color: #ffffff;
+  text-shadow: 0 0 12px rgba(0, 240, 255, 0.6);
+}
+
+.splash-subtitle {
+  font-size: 11px;
+  color: var(--color-cyan);
+  letter-spacing: 2px;
+  margin-top: 3px;
+}
+
+.splash-classification {
+  margin-left: auto;
+  padding: 4px 10px;
+  background: rgba(255, 0, 85, 0.18);
+  border: 1px solid var(--color-critical);
+  color: var(--color-critical);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 1.5px;
+  text-align: center;
+}
+
+/* Boot Terminal Console Window */
+.splash-console {
+  background: #02050c;
+  border: 1px solid rgba(0, 240, 255, 0.2);
+  padding: 14px 16px;
+  height: 140px;
+  overflow-y: hidden;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: #a0d8ef;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  box-shadow: inset 0 0 15px rgba(0, 0, 0, 0.8);
+}
+
+.console-line {
+  display: flex;
+  gap: 10px;
+  opacity: 0;
+  transform: translateY(4px);
+  animation: log-appear 0.25s forwards cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes log-appear {
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.console-line .tag-ok {
+  color: #00ff9d;
+  font-weight: 700;
+}
+
+.console-line .tag-sec {
+  color: var(--color-text-muted);
+}
+
+.console-line .log-text {
+  color: #d8e8f8;
+}
+
+/* Progress Bar */
+.splash-progress-wrapper {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.progress-header {
+  display: flex;
+  justify-content: space-between;
+  font-size: 10px;
+  letter-spacing: 1px;
+  color: var(--color-cyan);
+}
+
+.splash-progress-bar {
+  width: 100%;
+  height: 8px;
+  background: rgba(0, 240, 255, 0.1);
+  border: 1px solid rgba(0, 240, 255, 0.3);
+  border-radius: 4px;
+  overflow: hidden;
+  position: relative;
+}
+
+.splash-progress-fill {
+  height: 100%;
+  width: 0%;
+  background: linear-gradient(90deg, #0088ff, var(--color-cyan), #00ff9d);
+  border-radius: 4px;
+  transition: width 0.15s ease;
+  box-shadow: 0 0 10px rgba(0, 240, 255, 0.7);
+}
+
+/* Launch Button */
+.splash-action-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-top: 6px;
+}
+
+.splash-status-notice {
+  font-size: 10px;
+  color: var(--color-text-muted);
+  letter-spacing: 1px;
+}
+
+.btn-enter-terminal {
+  background: rgba(0, 240, 255, 0.15);
+  border: 1px solid var(--color-cyan);
+  color: #ffffff;
+  padding: 8px 20px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 1.5px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  transition: all 0.2s ease;
+}
+
+.btn-enter-terminal:hover {
+  background: var(--color-cyan);
+  color: #000000;
+  box-shadow: 0 0 18px rgba(0, 240, 255, 0.6);
+}

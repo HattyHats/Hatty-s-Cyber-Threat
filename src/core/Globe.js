@@ -1,7 +1,7 @@
 /**
  * ThreatSphere 3D - Three.js WebGL Interactive Cyber Globe
  * High-performance rendering, orbital controls, procedural dot-matrix continents,
- * atmospheric Fresnel glow, and smooth camera targeting.
+ * atmospheric Fresnel glow, satellite surveillance constellation, and camera targeting.
  */
 
 import * as THREE from 'https://esm.sh/three@0.162.0';
@@ -25,6 +25,8 @@ export class CyberGlobe {
     this.landPoints = null;
     this.atmosphereMesh = null;
     this.graticuleGroup = null;
+    this.satellitesGroup = null;
+    this.shieldsGroup = null;
     this.stars = null;
 
     // State & Animation
@@ -32,6 +34,8 @@ export class CyberGlobe {
     this.autoRotateSpeed = 0.45;
     this.isTransitioningCamera = false;
     this.cameraTween = null;
+    this.satellites = [];
+    this.activeShields = [];
 
     this.clock = new THREE.Clock();
     this.animationCallbacks = [];
@@ -50,6 +54,8 @@ export class CyberGlobe {
     this._initProceduralLandmass();
     this._initAtmosphereGlow();
     this._initGraticuleGrid();
+    this._initSatellites();
+    this._initShieldsGroup();
     this._initResizeHandler();
 
     this._animate();
@@ -98,7 +104,6 @@ export class CyberGlobe {
     this.controls.autoRotate = this.autoRotate;
     this.controls.autoRotateSpeed = this.autoRotateSpeed;
 
-    // Disable auto-rotate when user interacts
     this.controls.addEventListener('start', () => {
       if (this.isTransitioningCamera) {
         this.isTransitioningCamera = false;
@@ -108,16 +113,13 @@ export class CyberGlobe {
   }
 
   _initLights() {
-    // Ambient soft fill light
     const ambientLight = new THREE.AmbientLight(0x1a2e4a, 1.4);
     this.scene.add(ambientLight);
 
-    // Primary directional light
     const mainDirLight = new THREE.DirectionalLight(0xa5d8ff, 1.8);
     mainDirLight.position.set(300, 200, 200);
     this.scene.add(mainDirLight);
 
-    // Cyan secondary edge rim light
     const rimLight = new THREE.DirectionalLight(0x00f0ff, 1.0);
     rimLight.position.set(-300, -100, -200);
     this.scene.add(rimLight);
@@ -163,10 +165,7 @@ export class CyberGlobe {
   }
 
   _initGlobe() {
-    // Inner deep obsidian globe sphere
     const sphereGeometry = new THREE.SphereGeometry(GLOBE_RADIUS, 64, 64);
-
-    // Procedural tactical grid texture rendered to canvas
     const canvasTexture = this._createProceduralGlobeTexture();
 
     const sphereMaterial = new THREE.MeshStandardMaterial({
@@ -188,15 +187,12 @@ export class CyberGlobe {
     canvas.height = 1024;
     const ctx = canvas.getContext('2d');
 
-    // Deep space background
     ctx.fillStyle = '#050914';
     ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-    // Draw tactical grid lines (every 15 degrees)
     ctx.strokeStyle = 'rgba(0, 240, 255, 0.07)';
     ctx.lineWidth = 1;
 
-    // Latitudes
     for (let y = 0; y <= canvas.height; y += canvas.height / 12) {
       ctx.beginPath();
       ctx.moveTo(0, y);
@@ -204,7 +200,6 @@ export class CyberGlobe {
       ctx.stroke();
     }
 
-    // Longitudes
     for (let x = 0; x <= canvas.width; x += canvas.width / 24) {
       ctx.beginPath();
       ctx.moveTo(x, 0);
@@ -212,7 +207,6 @@ export class CyberGlobe {
       ctx.stroke();
     }
 
-    // Equator highlight
     ctx.strokeStyle = 'rgba(0, 240, 255, 0.22)';
     ctx.lineWidth = 2;
     ctx.beginPath();
@@ -220,7 +214,6 @@ export class CyberGlobe {
     ctx.lineTo(canvas.width, canvas.height / 2);
     ctx.stroke();
 
-    // Prime meridian highlight
     ctx.beginPath();
     ctx.moveTo(canvas.width / 2, 0);
     ctx.lineTo(canvas.width / 2, canvas.height);
@@ -233,7 +226,6 @@ export class CyberGlobe {
   }
 
   _initProceduralLandmass() {
-    // Generate ~3,200 continental coordinates
     const landCoords = generateLandmassPoints(2.2);
     const count = landCoords.length;
 
@@ -246,7 +238,6 @@ export class CyberGlobe {
 
     for (let i = 0; i < count; i++) {
       const { lat, lon } = landCoords[i];
-      // Place dots floating slightly above the ocean surface
       const pos = latLonToVector3(lat, lon, GLOBE_RADIUS + 0.5);
       positions[i * 3] = pos.x;
       positions[i * 3 + 1] = pos.y;
@@ -261,7 +252,6 @@ export class CyberGlobe {
     geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
     geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
 
-    // Circular point particle canvas
     const dotCanvas = document.createElement('canvas');
     dotCanvas.width = 64;
     dotCanvas.height = 64;
@@ -292,7 +282,6 @@ export class CyberGlobe {
   }
 
   _initAtmosphereGlow() {
-    // Atmospheric Fresnel Shader Halo
     const atmosphereGeometry = new THREE.SphereGeometry(GLOBE_RADIUS * 1.14, 64, 64);
 
     const customShader = {
@@ -306,7 +295,6 @@ export class CyberGlobe {
       fragmentShader: `
         varying vec3 vNormal;
         void main() {
-          // Fresnel calculation: glow brightest along the tangent edges
           float intensity = pow(0.68 - dot(vNormal, vec3(0.0, 0.0, 1.0)), 2.6);
           gl_FragColor = vec4(0.0, 0.85, 1.0, 1.0) * intensity * 0.95;
         }
@@ -329,7 +317,6 @@ export class CyberGlobe {
   _initGraticuleGrid() {
     this.graticuleGroup = new THREE.Group();
 
-    // Equatorial tactical ring
     const equatorGeo = new THREE.RingGeometry(GLOBE_RADIUS + 0.2, GLOBE_RADIUS + 0.8, 128);
     const ringMat = new THREE.MeshBasicMaterial({
       color: 0x00f0ff,
@@ -342,7 +329,6 @@ export class CyberGlobe {
     equator.rotation.x = Math.PI / 2;
     this.graticuleGroup.add(equator);
 
-    // Polar axis ring
     const polarGeo = new THREE.RingGeometry(GLOBE_RADIUS + 0.2, GLOBE_RADIUS + 0.8, 128);
     const polarMat = new THREE.MeshBasicMaterial({
       color: 0x0088ff,
@@ -355,6 +341,112 @@ export class CyberGlobe {
     this.graticuleGroup.add(polarRing);
 
     this.globeGroup.add(this.graticuleGroup);
+  }
+
+  /**
+   * Initializes orbital reconnaissance satellite constellation
+   */
+  _initSatellites() {
+    this.satellitesGroup = new THREE.Group();
+    this.scene.add(this.satellitesGroup);
+
+    const satelliteConfigs = [
+      { radius: 142, speed: 0.35, inclination: 0.45, angle: 0 },
+      { radius: 150, speed: -0.28, inclination: 0.85, angle: 1.2 },
+      { radius: 158, speed: 0.42, inclination: 0.30, angle: 2.4 },
+      { radius: 165, speed: -0.32, inclination: 1.10, angle: 3.6 },
+      { radius: 146, speed: 0.38, inclination: 0.65, angle: 4.8 },
+      { radius: 172, speed: -0.25, inclination: 0.95, angle: 5.5 }
+    ];
+
+    for (let i = 0; i < satelliteConfigs.length; i++) {
+      const cfg = satelliteConfigs[i];
+
+      // Orbit Path Ring
+      const orbitGeo = new THREE.RingGeometry(cfg.radius - 0.2, cfg.radius + 0.2, 96);
+      const orbitMat = new THREE.MeshBasicMaterial({
+        color: 0x00f0ff,
+        side: THREE.DoubleSide,
+        transparent: true,
+        opacity: 0.12,
+        blending: THREE.AdditiveBlending
+      });
+      const orbitRing = new THREE.Mesh(orbitGeo, orbitMat);
+      orbitRing.rotation.x = Math.PI / 2 + cfg.inclination;
+      orbitRing.rotation.y = (i * Math.PI) / 3;
+      this.satellitesGroup.add(orbitRing);
+
+      // Satellite Unit Model
+      const satGroup = new THREE.Group();
+
+      // Core
+      const coreGeo = new THREE.BoxGeometry(1.2, 1.2, 1.8);
+      const coreMat = new THREE.MeshBasicMaterial({ color: 0xffffff });
+      const core = new THREE.Mesh(coreGeo, coreMat);
+      satGroup.add(core);
+
+      // Solar Panels
+      const panelGeo = new THREE.BoxGeometry(4.2, 0.1, 1.0);
+      const panelMat = new THREE.MeshBasicMaterial({
+        color: 0x0088ff,
+        transparent: true,
+        opacity: 0.9
+      });
+      const panel = new THREE.Mesh(panelGeo, panelMat);
+      satGroup.add(panel);
+
+      this.satellitesGroup.add(satGroup);
+
+      this.satellites.push({
+        group: satGroup,
+        radius: cfg.radius,
+        speed: cfg.speed,
+        inclination: cfg.inclination,
+        yRotation: (i * Math.PI) / 3,
+        angle: cfg.angle
+      });
+    }
+  }
+
+  _initShieldsGroup() {
+    this.shieldsGroup = new THREE.Group();
+    this.scene.add(this.shieldsGroup);
+  }
+
+  /**
+   * Deploys an animated holographic defense shield over a city
+   * @param {number} lat
+   * @param {number} lon
+   */
+  deployShield(lat, lon) {
+    const pos = latLonToVector3(lat, lon, GLOBE_RADIUS + 0.6);
+    const normal = pos.clone().normalize();
+
+    // Geodesic force dome
+    const domeGeo = new THREE.SphereGeometry(7, 24, 16, 0, Math.PI * 2, 0, Math.PI / 2);
+    const domeMat = new THREE.MeshBasicMaterial({
+      color: 0x00ff9d,
+      wireframe: true,
+      transparent: true,
+      opacity: 0.9,
+      blending: THREE.AdditiveBlending
+    });
+
+    const shieldMesh = new THREE.Mesh(domeGeo, domeMat);
+    shieldMesh.position.copy(pos);
+    shieldMesh.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), normal);
+
+    this.shieldsGroup.add(shieldMesh);
+
+    this.activeShields.push({
+      mesh: shieldMesh,
+      material: domeMat,
+      geometry: domeGeo,
+      scale: 0.2,
+      maxScale: 1.4,
+      elapsed: 0,
+      duration: 8.0 // seconds
+    });
   }
 
   _initResizeHandler() {
@@ -372,15 +464,9 @@ export class CyberGlobe {
 
   /**
    * Smoothly pans and rotates the camera to center on a specific latitude/longitude
-   * @param {number} lat
-   * @param {number} lon
-   * @param {number} distance - Camera distance from globe center
-   * @param {number} durationMs - Transition duration in ms
    */
   focusOn(lat, lon, distance = 240, durationMs = 1200) {
-    // Determine world target position
     const targetVec = latLonToVector3(lat, lon, distance);
-
     const startPos = this.camera.position.clone();
     const startTime = performance.now();
 
@@ -391,8 +477,6 @@ export class CyberGlobe {
       update: (now) => {
         const elapsed = now - startTime;
         const progress = Math.min(1.0, elapsed / durationMs);
-
-        // Smooth cubic ease out
         const ease = 1 - Math.pow(1 - progress, 3);
 
         this.camera.position.lerpVectors(startPos, targetVec, ease);
@@ -407,21 +491,12 @@ export class CyberGlobe {
     };
   }
 
-  /**
-   * Toggle auto-rotation
-   * @param {boolean} [enable]
-   * @returns {boolean} New state
-   */
   toggleAutoRotate(enable) {
     this.autoRotate = enable !== undefined ? enable : !this.autoRotate;
     this.controls.autoRotate = this.autoRotate;
     return this.autoRotate;
   }
 
-  /**
-   * Register a custom per-frame animation callback
-   * @param {function(number)} cb - Callback receives deltaTime in seconds
-   */
   registerAnimation(cb) {
     this.animationCallbacks.push(cb);
   }
@@ -432,19 +507,59 @@ export class CyberGlobe {
     const delta = this.clock.getDelta();
     const now = performance.now();
 
-    // Camera tween interpolation
     if (this.isTransitioningCamera && this.cameraTween) {
       this.cameraTween.update(now);
     } else {
       this.controls.update();
     }
 
-    // Subtle starfield twinkling and drift
     if (this.stars) {
       this.stars.rotation.y += delta * 0.008;
     }
 
-    // Execute registered animation hooks (e.g. trajectories, pulses, ripples)
+    // Update Satellites along orbits
+    for (let i = 0; i < this.satellites.length; i++) {
+      const s = this.satellites[i];
+      s.angle += s.speed * delta;
+
+      // Position along inclined circle
+      const x = Math.cos(s.angle) * s.radius;
+      const z = Math.sin(s.angle) * s.radius;
+      const vec = new THREE.Vector3(x, 0, z);
+
+      // Apply inclination and y-rotation
+      vec.applyAxisAngle(new THREE.Vector3(1, 0, 0), s.inclination);
+      vec.applyAxisAngle(new THREE.Vector3(0, 1, 0), s.yRotation);
+
+      s.group.position.copy(vec);
+      s.group.lookAt(0, 0, 0);
+    }
+
+    // Update Active Holographic Defense Shields
+    for (let i = this.activeShields.length - 1; i >= 0; i--) {
+      const sh = this.activeShields[i];
+      sh.elapsed += delta;
+      const progress = sh.elapsed / sh.duration;
+
+      if (progress < 0.2) {
+        // Expand
+        const sc = 0.2 + (progress / 0.2) * (sh.maxScale - 0.2);
+        sh.mesh.scale.set(sc, sc, sc);
+      } else {
+        // Pulse and fade
+        const pulse = sh.maxScale + Math.sin(sh.elapsed * 10) * 0.1;
+        sh.mesh.scale.set(pulse, pulse, pulse);
+        sh.material.opacity = Math.max(0, 0.9 * (1.0 - (sh.elapsed - 1.6) / (sh.duration - 1.6)));
+      }
+
+      if (progress >= 1.0) {
+        this.shieldsGroup.remove(sh.mesh);
+        sh.geometry.dispose();
+        sh.material.dispose();
+        this.activeShields.splice(i, 1);
+      }
+    }
+
     for (let i = 0; i < this.animationCallbacks.length; i++) {
       this.animationCallbacks[i](delta);
     }

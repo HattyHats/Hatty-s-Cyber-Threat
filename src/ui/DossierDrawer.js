@@ -1,7 +1,7 @@
 /**
  * ThreatSphere 3D - Structured Threat Intelligence Dossier Drawer
  * Detailed technical breakdown of threat actors, trajectories, MITRE vectors,
- * CVEs, raw hex payloads, and tactical mitigation actions.
+ * CVEs, raw hex payloads, and interactive defense shield countermeasure.
  */
 
 export class DossierDrawer {
@@ -12,6 +12,7 @@ export class DossierDrawer {
   constructor(drawerElement, callbacks = {}) {
     this.drawer = drawerElement;
     this.onFocusGlobe = callbacks.onFocusGlobe || (() => {});
+    this.onDeployShield = callbacks.onDeployShield || (() => {});
     this.onSoundClick = callbacks.onSoundClick || (() => {});
 
     this.currentAttack = null;
@@ -34,7 +35,6 @@ export class DossierDrawer {
       });
     }
 
-    // Keyboard ESC closes drawer
     window.addEventListener('keydown', (e) => {
       if (e.key === 'Escape' && this.isOpen) {
         this.close();
@@ -42,10 +42,6 @@ export class DossierDrawer {
     });
   }
 
-  /**
-   * Opens the drawer and renders the full threat dossier
-   * @param {object} attack
-   */
   open(attack) {
     this.currentAttack = attack;
     this.isOpen = true;
@@ -77,7 +73,7 @@ export class DossierDrawer {
         </div>
         <div class="banner-status">
           <span class="status-pulse"></span>
-          <span class="status-text">${attack.status}</span>
+          <span class="status-text" id="dossier-status-text">${attack.status}</span>
         </div>
       </div>
 
@@ -146,7 +142,7 @@ export class DossierDrawer {
           </div>
 
           <!-- TARGET -->
-          <div class="trajectory-card target">
+          <div class="trajectory-card target" id="dossier-target-card">
             <div class="card-header">
               <span class="card-type">TARGET INFRASTRUCTURE</span>
               <span class="geo-flag">${attack.target.code}</span>
@@ -224,13 +220,16 @@ export class DossierDrawer {
       <!-- ACTION BUTTONS -->
       <div class="dossier-actions">
         <button class="btn btn-focus" id="btn-focus-globe">
-          <span class="btn-icon">🎯</span> FOCUS 3D GLOBE
+          <span class="btn-icon">🎯</span> FOCUS GLOBE
+        </button>
+        <button class="btn btn-shield" id="btn-deploy-shield">
+          <span class="btn-icon">🛡️</span> DEPLOY SHIELD
         </button>
         <button class="btn btn-copy" id="btn-copy-iocs">
           <span class="btn-icon">📋</span> COPY IOCs
         </button>
         <button class="btn btn-export" id="btn-export-json">
-          <span class="btn-icon">💾</span> EXPORT DOSSIER
+          <span class="btn-icon">💾</span> EXPORT JSON
         </button>
       </div>
     `;
@@ -247,13 +246,33 @@ export class DossierDrawer {
       });
     }
 
+    const shieldBtn = this.drawer.querySelector('#btn-deploy-shield');
+    if (shieldBtn) {
+      shieldBtn.addEventListener('click', () => {
+        this.onSoundClick();
+        // Deploy shield on globe
+        this.onDeployShield(attack.target.lat, attack.target.lon);
+
+        // Update status in UI
+        const statusEl = this.drawer.querySelector('#dossier-status-text');
+        if (statusEl) {
+          statusEl.textContent = 'DEFENSIVE SHIELD ACTIVE // INCIDENT MITIGATED';
+          statusEl.style.color = '#00ff9d';
+        }
+
+        shieldBtn.innerHTML = '<span class="btn-icon">✓</span> SHIELD DEPLOYED';
+        shieldBtn.style.background = '#00ff9d';
+        shieldBtn.style.color = '#000000';
+      });
+    }
+
     const copyBtn = this.drawer.querySelector('#btn-copy-iocs');
     if (copyBtn) {
       copyBtn.addEventListener('click', () => {
         this.onSoundClick();
         const iocData = `THREATSPHERE IOC REPORT:
 Incident ID: ${attack.id}
-Actor: ${attack.actor.name} (${attack.actor.allegiance})
+Source: ${attack.realSource || 'CTI Feed'}
 Origin IP: ${attack.origin.ip} (ASN: ${attack.origin.asn}, ${attack.origin.name})
 Target IP: ${attack.target.ip} (ASN: ${attack.target.asn}, ${attack.target.name})
 CVE: ${attack.cve.id} (CVSS: ${attack.cve.cvss})
@@ -286,9 +305,7 @@ Timestamp: ${attack.timestamp}`;
   }
 
   _formatHexDump(hexBytes) {
-    // Format into standard Wireshark/tcpdump hex view:
-    // 0000  50 4f 53 54 20 2f 73 73  6c 2d 76 70 6e 2f 68 69  |POST /ssl-vpn/hi|
-    const clean = hexBytes.replace(/\\s+/g, '');
+    const clean = hexBytes.replace(/\s+/g, '');
     let result = '';
 
     for (let i = 0; i < clean.length; i += 32) {
@@ -301,7 +318,7 @@ Timestamp: ${attack.timestamp}`;
       for (let j = 0; j < chunk.length; j += 2) {
         const byteHex = chunk.substring(j, j + 2);
         hexPart += byteHex + ' ';
-        if (j === 14) hexPart += ' '; // middle separator
+        if (j === 14) hexPart += ' ';
 
         const charCode = parseInt(byteHex, 16);
         asciiPart += (charCode >= 32 && charCode <= 126) ? String.fromCharCode(charCode) : '.';

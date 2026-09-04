@@ -693,7 +693,7 @@
 /* ACTIONS */
 .dossier-actions {
   display: grid;
-  grid-template-columns: 1fr 1fr 1fr;
+  grid-template-columns: 1fr 1fr 1fr 1fr;
   gap: 8px;
   margin-top: 10px;
   padding-bottom: 20px;
@@ -746,4 +746,15 @@
   .telemetry-panel {
     width: calc(100vw - 40px);
   }
+}
+
+.btn-shield {
+  border-color: #00ff9d !important;
+  color: #00ff9d !important;
+}
+
+.btn-shield:hover {
+  background: #00ff9d !important;
+  color: #000000 !important;
+  box-shadow: 0 0 14px rgba(0, 255, 157, 0.5);
 }
