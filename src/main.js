@@ -1,7 +1,7 @@
 /**
  * ThreatSphere 3D - Main Application Bootstrap & System Coordinator
  * Orchestrates 3D Globe, Real-World Cyber Ingestion, Attack Trajectories,
- * Dossier Drawer, Web Audio Synthesizer, and Cinematic Splash Screen.
+ * Dossier Drawer, and Web Audio Synthesizer.
  */
 
 import { CyberGlobe } from './core/Globe.js';
@@ -11,7 +11,6 @@ import { LiveRealWorldFeedAdapter, HybridFeedAdapter, SimulatedFeedAdapter } fro
 import { TelemetryFeed } from './ui/TelemetryFeed.js';
 import { DossierDrawer } from './ui/DossierDrawer.js';
 import { HUDController } from './ui/HUD.js';
-import { SplashScreen } from './ui/SplashScreen.js';
 
 class ThreatSphereApp {
   constructor() {
@@ -23,7 +22,6 @@ class ThreatSphereApp {
     this.telemetryFeed = null;
     this.dossierDrawer = null;
     this.hud = null;
-    this.splash = null;
 
     this._bootstrap();
   }
@@ -31,22 +29,14 @@ class ThreatSphereApp {
   _bootstrap() {
     console.log('[ThreatSphere 3D] Initializing Global Intelligence Terminal...');
 
-    // 1. Cinematic Splash Screen (Runs immediately first)
-    const splashEl = document.getElementById('cyber-splash');
-    if (splashEl) {
-      this.splash = new SplashScreen(splashEl, () => {
-        console.log('[ThreatSphere 3D] Splash boot complete. Terminal active.');
-      });
-    }
-
-    // 2. Audio Synthesizer
+    // 1. Audio Synthesizer
     this.sound = new SoundFX();
 
-    // 3. 3D WebGL Globe
+    // 2. 3D WebGL Globe
     const globeContainer = document.getElementById('globe-canvas-container');
     this.globe = new CyberGlobe(globeContainer);
 
-    // 4. Dynamic Trajectory & Particle FX Manager
+    // 3. Dynamic Trajectory & Particle FX Manager
     this.trajectories = new TrajectoryManager(this.globe, {
       onImpact: (attack) => {
         this.sound.playImpact(attack.severity);
@@ -56,7 +46,7 @@ class ThreatSphereApp {
       }
     });
 
-    // 5. Dossier Drawer with Holographic Defense Shield
+    // 4. Dossier Drawer with Holographic Defense Shield
     const drawerEl = document.getElementById('dossier-drawer');
     this.dossierDrawer = new DossierDrawer(drawerEl, {
       onFocusGlobe: (lat, lon) => {
@@ -70,7 +60,7 @@ class ThreatSphereApp {
       }
     });
 
-    // 6. Live Telemetry Feed
+    // 5. Live Telemetry Feed
     const feedEl = document.getElementById('telemetry-panel');
     this.telemetryFeed = new TelemetryFeed(feedEl, {
       onSelectAttack: (attack) => {
@@ -81,7 +71,7 @@ class ThreatSphereApp {
       }
     });
 
-    // 7. Tactical HUD Controller
+    // 6. Tactical HUD Controller
     this.hud = new HUDController(
       {
         totalIncidentsEl: document.getElementById('metric-total-incidents'),
@@ -126,7 +116,7 @@ class ThreatSphereApp {
 
     this.hud.updateAudioButton(this.sound.isMuted);
 
-    // 8. Initialize Ingestion Adapters
+    // 7. Initialize Ingestion Adapters
     this.adapters = {
       LIVE: new LiveRealWorldFeedAdapter({ intervalMs: 1400 }),
       HYBRID: new HybridFeedAdapter({ intervalMs: 1300 }),

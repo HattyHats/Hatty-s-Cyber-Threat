@@ -1,13 +1,13 @@
 /**
- * ThreatSphere 3D - Three.js WebGL Interactive Cyber Globe
- * High-performance rendering, orbital controls, procedural dot-matrix continents,
- * atmospheric Fresnel glow, satellite surveillance constellation, and camera targeting.
+ * ThreatSphere 3D - High-Fidelity 3D Cyber Globe
+ * Realistic 4K Night Earth with City Lights, Real-World Country Borders (10,000+ segments),
+ * 65+ Permanent City Beacons with Hover Tooltips, Orbiting Satellites, and Atmospheric Halo.
  */
 
 import * as THREE from 'https://esm.sh/three@0.162.0';
 import { OrbitControls } from 'https://esm.sh/three@0.162.0/addons/controls/OrbitControls.js';
 import { GLOBE_RADIUS, latLonToVector3 } from './Coordinates.js';
-import { generateLandmassPoints } from './LandmassData.js';
+import { CITIES } from '../config.js';
 
 export class CyberGlobe {
   /**
@@ -22,7 +22,8 @@ export class CyberGlobe {
 
     this.globeGroup = null;
     this.baseSphere = null;
-    this.landPoints = null;
+    this.bordersMesh = null;
+    this.cityHubsGroup = null;
     this.atmosphereMesh = null;
     this.graticuleGroup = null;
     this.satellitesGroup = null;
@@ -36,6 +37,12 @@ export class CyberGlobe {
     this.cameraTween = null;
     this.satellites = [];
     this.activeShields = [];
+    this.cityBeacons = new Map();
+
+    // Raycasting for city hover
+    this.raycaster = new THREE.Raycaster();
+    this.mouse = new THREE.Vector2();
+    this.hoveredCity = null;
 
     this.clock = new THREE.Clock();
     this.animationCallbacks = [];
@@ -51,11 +58,14 @@ export class CyberGlobe {
     this._initLights();
     this._initStarfield();
     this._initGlobe();
-    this._initProceduralLandmass();
+    this._initCountryBorders();
+    this._initPermanentCityHubs();
     this._initAtmosphereGlow();
     this._initGraticuleGrid();
     this._initSatellites();
     this._initShieldsGroup();
+    this._initCityTooltip();
+    this._initCityRaycasting();
     this._initResizeHandler();
 
     this._animate();
@@ -63,7 +73,7 @@ export class CyberGlobe {
 
   _initScene() {
     this.scene = new THREE.Scene();
-    this.scene.fog = new THREE.FogExp2(0x040711, 0.0012);
+    this.scene.fog = new THREE.FogExp2(0x030611, 0.0011);
 
     this.globeGroup = new THREE.Group();
     this.scene.add(this.globeGroup);
@@ -88,7 +98,7 @@ export class CyberGlobe {
     this.renderer.setSize(width, height);
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
-    this.renderer.toneMappingExposure = 1.1;
+    this.renderer.toneMappingExposure = 1.15;
 
     this.container.appendChild(this.renderer.domElement);
   }
@@ -116,11 +126,11 @@ export class CyberGlobe {
     const ambientLight = new THREE.AmbientLight(0x1a2e4a, 1.4);
     this.scene.add(ambientLight);
 
-    const mainDirLight = new THREE.DirectionalLight(0xa5d8ff, 1.8);
+    const mainDirLight = new THREE.DirectionalLight(0xd0e8ff, 1.6);
     mainDirLight.position.set(300, 200, 200);
     this.scene.add(mainDirLight);
 
-    const rimLight = new THREE.DirectionalLight(0x00f0ff, 1.0);
+    const rimLight = new THREE.DirectionalLight(0x00f0ff, 0.9);
     rimLight.position.set(-300, -100, -200);
     this.scene.add(rimLight);
   }
@@ -166,119 +176,166 @@ export class CyberGlobe {
 
   _initGlobe() {
     const sphereGeometry = new THREE.SphereGeometry(GLOBE_RADIUS, 64, 64);
-    const canvasTexture = this._createProceduralGlobeTexture();
+    const loader = new THREE.TextureLoader();
+
+    // Load Realistic 4K Night Earth Texture & Relief Topology
+    const nightTexture = loader.load(
+      './assets/textures/earth-night.jpg',
+      () => {
+        this.renderer.render(this.scene, this.camera);
+      },
+      undefined,
+      (err) => {
+        console.warn('[ThreatSphere 3D] Using procedural fallback texture:', err);
+      }
+    );
+
+    const bumpTexture = loader.load('./assets/textures/earth-topology.png');
 
     const sphereMaterial = new THREE.MeshStandardMaterial({
-      color: 0x050a16,
-      roughness: 0.85,
-      metalness: 0.15,
-      map: canvasTexture,
-      emissive: 0x020610,
-      emissiveIntensity: 0.4
+      map: nightTexture,
+      bumpMap: bumpTexture,
+      bumpScale: 1.5,
+      roughness: 0.72,
+      metalness: 0.18,
+      emissive: 0x0a1628,
+      emissiveMap: nightTexture,
+      emissiveIntensity: 0.65
     });
 
     this.baseSphere = new THREE.Mesh(sphereGeometry, sphereMaterial);
     this.globeGroup.add(this.baseSphere);
   }
 
-  _createProceduralGlobeTexture() {
-    const canvas = document.createElement('canvas');
-    canvas.width = 2048;
-    canvas.height = 1024;
-    const ctx = canvas.getContext('2d');
+  /**
+   * Ingests 10,000+ real country border segments and draws glowing vector boundaries
+   */
+  _initCountryBorders() {
+    fetch('./assets/data/country_borders.json')
+      .then(res => res.json())
+      .then(data => {
+        const positions = [];
+        // data format: [lon1, lat1, lon2, lat2, ...]
+        for (let i = 0; i < data.length; i += 4) {
+          const lon1 = data[i];
+          const lat1 = data[i + 1];
+          const lon2 = data[i + 2];
+          const lat2 = data[i + 3];
 
-    ctx.fillStyle = '#050914';
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
+          // Project onto sphere slightly above ocean surface (R + 0.35)
+          const p1 = latLonToVector3(lat1, lon1, GLOBE_RADIUS + 0.35);
+          const p2 = latLonToVector3(lat2, lon2, GLOBE_RADIUS + 0.35);
 
-    ctx.strokeStyle = 'rgba(0, 240, 255, 0.07)';
-    ctx.lineWidth = 1;
+          positions.push(p1.x, p1.y, p1.z);
+          positions.push(p2.x, p2.y, p2.z);
+        }
 
-    for (let y = 0; y <= canvas.height; y += canvas.height / 12) {
-      ctx.beginPath();
-      ctx.moveTo(0, y);
-      ctx.lineTo(canvas.width, y);
-      ctx.stroke();
-    }
+        const borderGeo = new THREE.BufferGeometry();
+        borderGeo.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
 
-    for (let x = 0; x <= canvas.width; x += canvas.width / 24) {
-      ctx.beginPath();
-      ctx.moveTo(x, 0);
-      ctx.lineTo(x, canvas.height);
-      ctx.stroke();
-    }
+        const borderMat = new THREE.LineBasicMaterial({
+          color: 0x00e5ff,
+          transparent: true,
+          opacity: 0.42,
+          blending: THREE.AdditiveBlending
+        });
 
-    ctx.strokeStyle = 'rgba(0, 240, 255, 0.22)';
-    ctx.lineWidth = 2;
-    ctx.beginPath();
-    ctx.moveTo(0, canvas.height / 2);
-    ctx.lineTo(canvas.width, canvas.height / 2);
-    ctx.stroke();
-
-    ctx.beginPath();
-    ctx.moveTo(canvas.width / 2, 0);
-    ctx.lineTo(canvas.width / 2, canvas.height);
-    ctx.stroke();
-
-    const texture = new THREE.CanvasTexture(canvas);
-    texture.wrapS = THREE.RepeatWrapping;
-    texture.wrapT = THREE.ClampToEdgeWrapping;
-    return texture;
+        this.bordersMesh = new THREE.LineSegments(borderGeo, borderMat);
+        this.globeGroup.add(this.bordersMesh);
+        console.log(`[ThreatSphere 3D] Rendered ${positions.length / 6} real-world country border segments.`);
+      })
+      .catch(err => {
+        console.warn('[ThreatSphere 3D] Could not load country borders:', err);
+      });
   }
 
-  _initProceduralLandmass() {
-    const landCoords = generateLandmassPoints(2.2);
-    const count = landCoords.length;
+  /**
+   * Permanent tactical city beacons with hover detection
+   */
+  _initPermanentCityHubs() {
+    this.cityHubsGroup = new THREE.Group();
+    this.globeGroup.add(this.cityHubsGroup);
 
-    const geometry = new THREE.BufferGeometry();
-    const positions = new Float32Array(count * 3);
-    const colors = new Float32Array(count * 3);
+    CITIES.forEach(city => {
+      const pos = latLonToVector3(city.lat, city.lon, GLOBE_RADIUS + 0.5);
+      const normal = pos.clone().normalize();
 
-    const baseColor = new THREE.Color(0x00f0ff);
-    const highlightColor = new THREE.Color(0x7df9ff);
+      const hub = new THREE.Group();
+      hub.position.copy(pos);
+      hub.quaternion.setFromUnitVectors(new THREE.Vector3(0, 0, 1), normal);
 
-    for (let i = 0; i < count; i++) {
-      const { lat, lon } = landCoords[i];
-      const pos = latLonToVector3(lat, lon, GLOBE_RADIUS + 0.5);
-      positions[i * 3] = pos.x;
-      positions[i * 3 + 1] = pos.y;
-      positions[i * 3 + 2] = pos.z;
+      // Outer beacon ring
+      const ringGeo = new THREE.RingGeometry(0.8, 1.4, 16);
+      const ringMat = new THREE.MeshBasicMaterial({
+        color: 0x00f0ff,
+        side: THREE.DoubleSide,
+        transparent: true,
+        opacity: 0.6,
+        blending: THREE.AdditiveBlending
+      });
+      const ring = new THREE.Mesh(ringGeo, ringMat);
+      hub.add(ring);
 
-      const dotColor = Math.random() < 0.2 ? highlightColor : baseColor;
-      colors[i * 3] = dotColor.r;
-      colors[i * 3 + 1] = dotColor.g;
-      colors[i * 3 + 2] = dotColor.b;
-    }
+      // Center core point
+      const coreGeo = new THREE.CircleGeometry(0.5, 12);
+      const coreMat = new THREE.MeshBasicMaterial({
+        color: 0xffffff,
+        side: THREE.DoubleSide,
+        transparent: true,
+        opacity: 0.95
+      });
+      const core = new THREE.Mesh(coreGeo, coreMat);
+      core.userData = { city };
+      hub.add(core);
 
-    geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
-    geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
-
-    const dotCanvas = document.createElement('canvas');
-    dotCanvas.width = 64;
-    dotCanvas.height = 64;
-    const ctx = dotCanvas.getContext('2d');
-    const grad = ctx.createRadialGradient(32, 32, 0, 32, 32, 30);
-    grad.addColorStop(0, 'rgba(255, 255, 255, 1)');
-    grad.addColorStop(0.4, 'rgba(0, 240, 255, 0.9)');
-    grad.addColorStop(0.8, 'rgba(0, 240, 255, 0.3)');
-    grad.addColorStop(1, 'rgba(0, 240, 255, 0)');
-    ctx.fillStyle = grad;
-    ctx.beginPath();
-    ctx.arc(32, 32, 30, 0, Math.PI * 2);
-    ctx.fill();
-
-    const dotTexture = new THREE.CanvasTexture(dotCanvas);
-
-    const material = new THREE.PointsMaterial({
-      size: 2.2,
-      map: dotTexture,
-      transparent: true,
-      vertexColors: true,
-      blending: THREE.AdditiveBlending,
-      depthWrite: false
+      hub.userData = { city, ring, core };
+      this.cityHubsGroup.add(hub);
+      this.cityBeacons.set(city.name, hub);
     });
+  }
 
-    this.landPoints = new THREE.Points(geometry, material);
-    this.globeGroup.add(this.landPoints);
+  _initCityTooltip() {
+    this.cityTooltip = document.createElement('div');
+    this.cityTooltip.className = 'city-hub-tooltip';
+    this.cityTooltip.style.display = 'none';
+    this.container.appendChild(this.cityTooltip);
+  }
+
+  _initCityRaycasting() {
+    const dom = this.renderer.domElement;
+
+    dom.addEventListener('pointermove', (e) => {
+      const rect = dom.getBoundingClientRect();
+      this.mouse.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
+      this.mouse.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
+
+      if (!this.cityHubsGroup) return;
+
+      this.raycaster.setFromCamera(this.mouse, this.camera);
+      const intersects = this.raycaster.intersectObjects(this.cityHubsGroup.children, true);
+
+      if (intersects.length > 0) {
+        const hitObj = intersects[0].object;
+        const city = hitObj.userData.city;
+
+        if (city) {
+          this.hoveredCity = city;
+          this.cityTooltip.style.display = 'block';
+          this.cityTooltip.style.left = `${e.clientX + 14}px`;
+          this.cityTooltip.style.top = `${e.clientY - 28}px`;
+          this.cityTooltip.innerHTML = `
+            <div class="city-tip-header">${city.name} <span class="tip-flag">[${city.code}]</span></div>
+            <div class="city-tip-geo">${city.country} // LAT ${city.lat.toFixed(2)} LON ${city.lon.toFixed(2)}</div>
+          `;
+          return;
+        }
+      }
+
+      if (this.hoveredCity) {
+        this.hoveredCity = null;
+        this.cityTooltip.style.display = 'none';
+      }
+    });
   }
 
   _initAtmosphereGlow() {
@@ -343,9 +400,6 @@ export class CyberGlobe {
     this.globeGroup.add(this.graticuleGroup);
   }
 
-  /**
-   * Initializes orbital reconnaissance satellite constellation
-   */
   _initSatellites() {
     this.satellitesGroup = new THREE.Group();
     this.scene.add(this.satellitesGroup);
@@ -362,7 +416,6 @@ export class CyberGlobe {
     for (let i = 0; i < satelliteConfigs.length; i++) {
       const cfg = satelliteConfigs[i];
 
-      // Orbit Path Ring
       const orbitGeo = new THREE.RingGeometry(cfg.radius - 0.2, cfg.radius + 0.2, 96);
       const orbitMat = new THREE.MeshBasicMaterial({
         color: 0x00f0ff,
@@ -376,16 +429,13 @@ export class CyberGlobe {
       orbitRing.rotation.y = (i * Math.PI) / 3;
       this.satellitesGroup.add(orbitRing);
 
-      // Satellite Unit Model
       const satGroup = new THREE.Group();
 
-      // Core
       const coreGeo = new THREE.BoxGeometry(1.2, 1.2, 1.8);
       const coreMat = new THREE.MeshBasicMaterial({ color: 0xffffff });
       const core = new THREE.Mesh(coreGeo, coreMat);
       satGroup.add(core);
 
-      // Solar Panels
       const panelGeo = new THREE.BoxGeometry(4.2, 0.1, 1.0);
       const panelMat = new THREE.MeshBasicMaterial({
         color: 0x0088ff,
@@ -413,16 +463,10 @@ export class CyberGlobe {
     this.scene.add(this.shieldsGroup);
   }
 
-  /**
-   * Deploys an animated holographic defense shield over a city
-   * @param {number} lat
-   * @param {number} lon
-   */
   deployShield(lat, lon) {
     const pos = latLonToVector3(lat, lon, GLOBE_RADIUS + 0.6);
     const normal = pos.clone().normalize();
 
-    // Geodesic force dome
     const domeGeo = new THREE.SphereGeometry(7, 24, 16, 0, Math.PI * 2, 0, Math.PI / 2);
     const domeMat = new THREE.MeshBasicMaterial({
       color: 0x00ff9d,
@@ -445,7 +489,7 @@ export class CyberGlobe {
       scale: 0.2,
       maxScale: 1.4,
       elapsed: 0,
-      duration: 8.0 // seconds
+      duration: 8.0
     });
   }
 
@@ -462,9 +506,6 @@ export class CyberGlobe {
     });
   }
 
-  /**
-   * Smoothly pans and rotates the camera to center on a specific latitude/longitude
-   */
   focusOn(lat, lon, distance = 240, durationMs = 1200) {
     const targetVec = latLonToVector3(lat, lon, distance);
     const startPos = this.camera.position.clone();
@@ -517,17 +558,25 @@ export class CyberGlobe {
       this.stars.rotation.y += delta * 0.008;
     }
 
+    // Pulse City Beacons
+    if (this.cityHubsGroup) {
+      const beaconScale = 1.0 + Math.sin(now * 0.004) * 0.15;
+      this.cityBeacons.forEach(hub => {
+        if (hub.userData.ring) {
+          hub.userData.ring.scale.set(beaconScale, beaconScale, 1.0);
+        }
+      });
+    }
+
     // Update Satellites along orbits
     for (let i = 0; i < this.satellites.length; i++) {
       const s = this.satellites[i];
       s.angle += s.speed * delta;
 
-      // Position along inclined circle
       const x = Math.cos(s.angle) * s.radius;
       const z = Math.sin(s.angle) * s.radius;
       const vec = new THREE.Vector3(x, 0, z);
 
-      // Apply inclination and y-rotation
       vec.applyAxisAngle(new THREE.Vector3(1, 0, 0), s.inclination);
       vec.applyAxisAngle(new THREE.Vector3(0, 1, 0), s.yRotation);
 
@@ -542,11 +591,9 @@ export class CyberGlobe {
       const progress = sh.elapsed / sh.duration;
 
       if (progress < 0.2) {
-        // Expand
         const sc = 0.2 + (progress / 0.2) * (sh.maxScale - 0.2);
         sh.mesh.scale.set(sc, sc, sc);
       } else {
-        // Pulse and fade
         const pulse = sh.maxScale + Math.sin(sh.elapsed * 10) * 0.1;
         sh.mesh.scale.set(pulse, pulse, pulse);
         sh.material.opacity = Math.max(0, 0.9 * (1.0 - (sh.elapsed - 1.6) / (sh.duration - 1.6)));

@@ -31,7 +31,7 @@
   <div class="scanlines"></div>
   <div class="vignette"></div>
 
-  <!-- CINEMATIC TACTICAL SPLASH SCREEN -->
+  <!-- CINEMATIC TACTICAL SPLASH SCREEN (Zero-Delay Self-Contained) -->
   <div id="cyber-splash" class="cyber-splash">
     <div class="splash-container">
       <div class="splash-header">
@@ -48,45 +48,134 @@
         </div>
       </div>
 
-      <div class="splash-console">
-        <!-- Animated diagnostic logs injected by SplashScreen.js -->
+      <div class="splash-console" id="splash-console">
+        <!-- Real-time diagnostic logs immediately streaming -->
       </div>
 
       <div class="splash-progress-wrapper">
         <div class="progress-header">
           <span>SYSTEM CALIBRATION & SENSOR SYNC</span>
-          <span class="progress-pct">0%</span>
+          <span class="progress-pct" id="splash-pct">0%</span>
         </div>
         <div class="splash-progress-bar">
-          <div class="splash-progress-fill"></div>
+          <div class="splash-progress-fill" id="splash-fill"></div>
         </div>
       </div>
 
       <div class="splash-action-row">
-        <div class="splash-status-notice">CONNECTING TO GLOBAL SENSOR GRID...</div>
-        <button class="btn-enter-terminal">
+        <div class="splash-status-notice" id="splash-notice">CONNECTING TO GLOBAL SENSOR GRID...</div>
+        <button class="btn-enter-terminal" id="splash-enter-btn">
           <span>ENTER TERMINAL</span> ➔
         </button>
       </div>
     </div>
   </div>
 
-  <!-- INLINE SPLASH FAILSAFE (Guarantees splash dissolves even if network is slow) -->
+  <!-- IMMEDIATE INLINE SPLASH CONTROLLER (Runs instantly on frame 1 without waiting for module downloads) -->
   <script>
     (function() {
-      function dismissSplash() {
-        var sp = document.getElementById('cyber-splash');
-        if (sp) {
-          sp.classList.add('fade-out');
-          sp.style.pointerEvents = 'none';
+      const splash = document.getElementById('cyber-splash');
+      const consoleEl = document.getElementById('splash-console');
+      const fillEl = document.getElementById('splash-fill');
+      const pctEl = document.getElementById('splash-pct');
+      const noticeEl = document.getElementById('splash-notice');
+      const enterBtn = document.getElementById('splash-enter-btn');
+
+      if (!splash) return;
+
+      const bootLogs = [
+        { sec: '0.012s', text: 'Initializing Three.js WebGL 2.0 orbital rendering pipeline...' },
+        { sec: '0.240s', text: 'Calibrating geodetic coordinate matrices for 60+ global capitals...' },
+        { sec: '0.510s', text: 'Establishing secure handshake with SANS ISC DShield sensor grid...' },
+        { sec: '0.820s', text: 'Synchronizing IPsum 30-feed consensus grid (133,000+ malicious nodes)...' },
+        { sec: '1.240s', text: 'Surveillance satellite orbital constellation synchronized...' },
+        { sec: '1.650s', text: 'Web Audio procedural acoustic synthesizer online...' },
+        { sec: '2.100s', text: 'SYSTEM OPERATIONAL // DEFCON 2 GLOBAL TELEMETRY ONLINE' }
+      ];
+
+      let isDismissed = false;
+      let logIndex = 0;
+      const duration = 2400; // 2.4s total animation
+      const start = performance.now();
+
+      function addNextLog() {
+        if (isDismissed || logIndex >= bootLogs.length || !consoleEl) return;
+        const item = bootLogs[logIndex];
+        const line = document.createElement('div');
+        line.className = 'console-line';
+        line.innerHTML = '<span class="tag-ok">[OK]</span> <span class="tag-sec">' + item.sec + '</span> <span class="log-text">' + item.text + '</span>';
+        consoleEl.appendChild(line);
+        consoleEl.scrollTop = consoleEl.scrollHeight;
+        logIndex++;
+      }
+
+      // Add first log immediately!
+      addNextLog();
+
+      // Stagger subsequent logs every 300ms
+      const logTimer = setInterval(function() {
+        if (isDismissed || logIndex >= bootLogs.length) {
+          clearInterval(logTimer);
+          return;
+        }
+        addNextLog();
+      }, 300);
+
+      // Smooth progress bar update
+      function stepProgress(now) {
+        if (isDismissed) return;
+        const elapsed = now - start;
+        const p = Math.min(1.0, elapsed / duration);
+        const pct = Math.round(p * 100);
+
+        if (fillEl) fillEl.style.width = pct + '%';
+        if (pctEl) pctEl.textContent = pct + '%';
+
+        if (p < 1.0) {
+          requestAnimationFrame(stepProgress);
+        } else {
+          if (noticeEl) noticeEl.textContent = 'ALL SYSTEMS NOMINAL // ENTERING...';
+          if (enterBtn) enterBtn.innerHTML = 'INITIALIZED ➔';
+          setTimeout(dismiss, 300);
+        }
+      }
+      requestAnimationFrame(stepProgress);
+
+      function dismiss() {
+        if (isDismissed) return;
+        isDismissed = true;
+        clearInterval(logTimer);
+
+        if (splash) {
+          splash.classList.add('fade-out');
+          splash.style.pointerEvents = 'none';
           setTimeout(function() {
-            if (sp && sp.parentNode) sp.parentNode.removeChild(sp);
+            if (splash && splash.parentNode) {
+              splash.parentNode.removeChild(splash);
+            }
           }, 800);
         }
       }
-      setTimeout(dismissSplash, 2800);
-      var sp = document.getElementById('cyber-splash');
-      if (sp) sp.addEventListener('click', dismissSplash);
+
+      // Expose globally so main.js can dismiss early if needed
+      window.dismissSplashScreen = dismiss;
+
+      // Click anywhere to bypass immediately
+      splash.addEventListener('click', dismiss);
+      if (enterBtn) enterBtn.addEventListener('click', function(e) {
+        e.stopPropagation();
+        dismiss();
+      });
+
+      // Keyboard bypass
+      window.addEventListener('keydown', function(e) {
+        if (e.key === 'Enter' || e.key === ' ' || e.key === 'Escape') {
+          dismiss();
+        }
+      }, { once: true });
+
+      // Absolute safety timeout
+      setTimeout(dismiss, 3200);
     })();
   </script>
 

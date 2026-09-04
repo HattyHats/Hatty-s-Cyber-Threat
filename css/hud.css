@@ -582,3 +582,34 @@ html, body {
     grid-template-columns: 1fr 1fr !important;
   }
 }
+
+/* CITY HUB TOOLTIP */
+.city-hub-tooltip {
+  position: absolute;
+  pointer-events: none;
+  background: rgba(3, 8, 20, 0.94);
+  border: 1px solid var(--color-cyan);
+  padding: 6px 10px;
+  font-size: 10px;
+  z-index: 60;
+  box-shadow: 0 0 14px rgba(0, 240, 255, 0.35);
+  backdrop-filter: blur(6px);
+  white-space: nowrap;
+}
+
+.city-tip-header {
+  font-weight: 700;
+  color: #ffffff;
+  letter-spacing: 1px;
+}
+
+.city-tip-geo {
+  font-size: 9px;
+  color: var(--color-cyan);
+  margin-top: 2px;
+}
+
+.tip-flag {
+  color: var(--color-text-muted);
+  font-weight: 400;
+}
