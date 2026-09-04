@@ -154,7 +154,7 @@ export class TrajectoryManager {
       blending: THREE.AdditiveBlending
     });
     const glowMesh = new THREE.Mesh(glowGeo, glowMat);
-    pulseMesh.add(glowMat);
+    pulseMesh.add(glowMesh);
 
     // 3. Target Hit Anchor on Globe Surface (for raycasting & visual beacon)
     const targetAnchor = this._createTargetAnchor(targetVec, severityConfig, attack);

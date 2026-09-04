@@ -31,14 +31,22 @@ class ThreatSphereApp {
   _bootstrap() {
     console.log('[ThreatSphere 3D] Initializing Global Intelligence Terminal...');
 
-    // 1. Audio Synthesizer
+    // 1. Cinematic Splash Screen (Runs immediately first)
+    const splashEl = document.getElementById('cyber-splash');
+    if (splashEl) {
+      this.splash = new SplashScreen(splashEl, () => {
+        console.log('[ThreatSphere 3D] Splash boot complete. Terminal active.');
+      });
+    }
+
+    // 2. Audio Synthesizer
     this.sound = new SoundFX();
 
-    // 2. 3D WebGL Globe
+    // 3. 3D WebGL Globe
     const globeContainer = document.getElementById('globe-canvas-container');
     this.globe = new CyberGlobe(globeContainer);
 
-    // 3. Dynamic Trajectory & Particle FX Manager
+    // 4. Dynamic Trajectory & Particle FX Manager
     this.trajectories = new TrajectoryManager(this.globe, {
       onImpact: (attack) => {
         this.sound.playImpact(attack.severity);
@@ -48,7 +56,7 @@ class ThreatSphereApp {
       }
     });
 
-    // 4. Dossier Drawer with Holographic Defense Shield
+    // 5. Dossier Drawer with Holographic Defense Shield
     const drawerEl = document.getElementById('dossier-drawer');
     this.dossierDrawer = new DossierDrawer(drawerEl, {
       onFocusGlobe: (lat, lon) => {
@@ -62,7 +70,7 @@ class ThreatSphereApp {
       }
     });
 
-    // 5. Live Telemetry Feed
+    // 6. Live Telemetry Feed
     const feedEl = document.getElementById('telemetry-panel');
     this.telemetryFeed = new TelemetryFeed(feedEl, {
       onSelectAttack: (attack) => {
@@ -73,7 +81,7 @@ class ThreatSphereApp {
       }
     });
 
-    // 6. Tactical HUD Controller
+    // 7. Tactical HUD Controller
     this.hud = new HUDController(
       {
         totalIncidentsEl: document.getElementById('metric-total-incidents'),
@@ -118,7 +126,7 @@ class ThreatSphereApp {
 
     this.hud.updateAudioButton(this.sound.isMuted);
 
-    // 7. Initialize Ingestion Adapters
+    // 8. Initialize Ingestion Adapters
     this.adapters = {
       LIVE: new LiveRealWorldFeedAdapter({ intervalMs: 1400 }),
       HYBRID: new HybridFeedAdapter({ intervalMs: 1300 }),
@@ -138,14 +146,6 @@ class ThreatSphereApp {
 
     // Start with LIVE REAL-WORLD Feed
     this.setFeedMode('LIVE');
-
-    // 8. Cinematic Splash Screen
-    const splashEl = document.getElementById('cyber-splash');
-    if (splashEl) {
-      this.splash = new SplashScreen(splashEl, () => {
-        console.log('[ThreatSphere 3D] Splash boot complete. Terminal active.');
-      });
-    }
 
     // Audio unlock listener
     const unlockAudio = () => {
@@ -183,6 +183,14 @@ class ThreatSphereApp {
   }
 }
 
-window.addEventListener('DOMContentLoaded', () => {
-  window.threatSphere = new ThreatSphereApp();
-});
+function bootstrapApp() {
+  if (!window.threatSphere) {
+    window.threatSphere = new ThreatSphereApp();
+  }
+}
+
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', bootstrapApp);
+} else {
+  bootstrapApp();
+}

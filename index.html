@@ -71,6 +71,25 @@
     </div>
   </div>
 
+  <!-- INLINE SPLASH FAILSAFE (Guarantees splash dissolves even if network is slow) -->
+  <script>
+    (function() {
+      function dismissSplash() {
+        var sp = document.getElementById('cyber-splash');
+        if (sp) {
+          sp.classList.add('fade-out');
+          sp.style.pointerEvents = 'none';
+          setTimeout(function() {
+            if (sp && sp.parentNode) sp.parentNode.removeChild(sp);
+          }, 800);
+        }
+      }
+      setTimeout(dismissSplash, 2800);
+      var sp = document.getElementById('cyber-splash');
+      if (sp) sp.addEventListener('click', dismissSplash);
+    })();
+  </script>
+
   <div class="app-container">
     <!-- 3D WEBGL GLOBE CANVAS -->
     <div id="globe-canvas-container"></div>

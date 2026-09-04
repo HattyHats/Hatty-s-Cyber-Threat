@@ -29,15 +29,23 @@ export class SplashScreen {
   }
 
   _initListeners() {
-    if (this.enterBtn) {
-      this.enterBtn.addEventListener('click', () => {
+    // Click anywhere on splash to dismiss immediately
+    if (this.container) {
+      this.container.addEventListener('click', () => {
         this.finish();
       });
     }
 
-    // Enter key can also bypass
+    if (this.enterBtn) {
+      this.enterBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        this.finish();
+      });
+    }
+
+    // Keyboard bypass
     window.addEventListener('keydown', (e) => {
-      if ((e.key === 'Enter' || e.key === ' ') && !this.isDone) {
+      if ((e.key === 'Enter' || e.key === ' ' || e.key === 'Escape') && !this.isDone) {
         this.finish();
       }
     }, { once: true });
@@ -45,8 +53,13 @@ export class SplashScreen {
 
   startBootSequence() {
     let logIndex = 0;
-    const totalDuration = 2400; // 2.4 seconds
+    const totalDuration = 2200; // 2.2 seconds
     const startTime = performance.now();
+
+    // Absolute fail-safe: dismiss after 2.8s no matter what
+    setTimeout(() => {
+      this.finish();
+    }, 2800);
 
     const addNextLog = () => {
       if (logIndex < this.bootLogs.length && this.consoleEl) {
@@ -64,13 +77,16 @@ export class SplashScreen {
       }
     };
 
-    // Stagger log additions
     const logInterval = setInterval(() => {
+      if (this.isDone) {
+        clearInterval(logInterval);
+        return;
+      }
       addNextLog();
       if (logIndex >= this.bootLogs.length) {
         clearInterval(logInterval);
       }
-    }, 320);
+    }, 280);
 
     // Smooth progress bar loop
     const updateProgress = (now) => {
@@ -90,7 +106,7 @@ export class SplashScreen {
         if (this.enterBtn) this.enterBtn.innerHTML = 'INITIALIZED ➔';
         setTimeout(() => {
           this.finish();
-        }, 350);
+        }, 250);
       }
     };
 
@@ -103,9 +119,12 @@ export class SplashScreen {
 
     if (this.container) {
       this.container.classList.add('fade-out');
+      this.container.style.pointerEvents = 'none';
       setTimeout(() => {
-        this.container.remove();
-      }, 850);
+        if (this.container && this.container.parentNode) {
+          this.container.parentNode.removeChild(this.container);
+        }
+      }, 750);
     }
 
     this.onComplete();
