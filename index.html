@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ThreatSphere 3D // Real-World Global Cyber Attack Terminal</title>
+  <meta name="description" content="Real-time 3D global cyber threat visualization ingesting live SANS ISC DShield, IPsum and Honeypot telemetry">
+
+  <!-- Google Fonts for Military-grade Terminal Typography -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;700&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+
+  <!-- HUD Stylesheets -->
+  <link rel="stylesheet" href="./css/hud.css">
+  <link rel="stylesheet" href="./css/dossier.css">
+
+  <!-- Import Map for Three.js -->
+  <script type="importmap">
+  {
+    "imports": {
+      "three": "https://esm.sh/three@0.162.0",
+      "three/addons/": "https://esm.sh/three@0.162.0/addons/"
+    }
+  }
+  </script>
+</head>
+<body>
+  <!-- CRT SCANLINES & VIGNETTE EFFECTS -->
+  <div class="scanlines"></div>
+  <div class="vignette"></div>
+
+  <div class="app-container">
+    <!-- 3D WEBGL GLOBE CANVAS -->
+    <div id="globe-canvas-container"></div>
+
+    <!-- TOP HEADER TACTICAL HUD -->
+    <header class="hud-header">
+      <div class="header-left">
+        <div class="brand-title">
+          <div class="brand-radar-icon"></div>
+          <div class="brand-text">
+            <h1>THREATSPHERE 3D</h1>
+            <div class="brand-subtitle">GLOBAL CYBER DEFENSE TERMINAL</div>
+          </div>
+        </div>
+
+        <!-- FEED MODE SWITCHER (LIVE / HYBRID / SIMULATION) -->
+        <div class="feed-selector-wrapper" id="feed-mode-selector">
+          <span class="selector-label">DATA STREAM:</span>
+          <button class="feed-mode-btn active" data-mode="LIVE" title="Ingest live real-world attack telemetry from SANS ISC and IPsum">
+            <span class="btn-dot dot-live"></span> LIVE REAL-WORLD
+          </button>
+          <button class="feed-mode-btn" data-mode="HYBRID" title="Interleave real-world attacks with deep APT dossier scenarios">
+            <span class="btn-dot dot-hybrid"></span> HYBRID
+          </button>
+          <button class="feed-mode-btn" data-mode="SIM" title="Autonomous deterministic attack generator">
+            <span class="btn-dot dot-sim"></span> SIMULATED
+          </button>
+        </div>
+      </div>
+
+      <div class="header-center">
+        <div class="feed-indicator mode-live" id="feed-status-indicator">
+          <span class="live-dot red"></span>
+          <span>LIVE REAL-WORLD: SANS ISC & IPSUM GLOBAL SENSORS</span>
+        </div>
+        <div class="clock-display" id="hud-clock">00:00:00 UTC</div>
+      </div>
+
+      <div class="header-right">
+        <button class="btn-hud btn-surge" id="btn-surge" title="Trigger high-intensity cyber offensive surge">
+          <span class="icon">⚡</span> SURGE ATTACK
+        </button>
+        <button class="btn-hud" id="btn-audio" title="Toggle tactical sound synthesis">
+          <span class="icon">🔊</span> AUDIO ON
+        </button>
+        <button class="btn-hud active" id="btn-rotate" title="Toggle automatic orbital rotation">
+          <span class="icon">🔄</span> ROTATE
+        </button>
+        <button class="btn-hud" id="btn-reset-view" title="Reset camera to default vantage">
+          <span class="icon">🎯</span> RESET
+        </button>
+      </div>
+    </header>
+
+    <!-- LEFT TELEMETRY FEED PANEL -->
+    <aside class="telemetry-panel" id="telemetry-panel">
+      <div class="panel-header">
+        <div class="panel-title">
+          <span class="feed-pulse"></span>
+          <span>REAL-TIME TELEMETRY FEED</span>
+        </div>
+        <button class="feed-pause-btn" title="Pause or resume live incident stream">
+          <span class="icon">⏸</span> PAUSE FEED
+        </button>
+      </div>
+
+      <div class="feed-search-box">
+        <span class="search-icon">🔍</span>
+        <input 
+          type="text" 
+          class="feed-search-input" 
+          placeholder="Filter by IP, City, Vector, Actor, CVE..." 
+          spellcheck="false"
+          autocomplete="off"
+        >
+      </div>
+
+      <div class="filter-group">
+        <button class="filter-chip active" data-severity="ALL">ALL</button>
+        <button class="filter-chip" data-severity="CRITICAL">CRITICAL</button>
+        <button class="filter-chip" data-severity="HIGH">HIGH</button>
+        <button class="filter-chip" data-severity="MEDIUM">MED</button>
+        <button class="filter-chip" data-severity="LOW">LOW</button>
+      </div>
+
+      <div class="feed-list" id="feed-list">
+        <!-- Live items dynamically rendered by TelemetryFeed.js -->
+      </div>
+    </aside>
+
+    <!-- RIGHT COLLAPSIBLE THREAT DOSSIER DRAWER -->
+    <aside class="dossier-drawer" id="dossier-drawer">
+      <div class="drawer-header">
+        <div class="drawer-title">
+          <span class="drawer-icon">📑</span>
+          <span>THREAT INTELLIGENCE DOSSIER</span>
+        </div>
+        <button class="drawer-close" title="Close Dossier (Esc)">✕</button>
+      </div>
+      <div class="dossier-content">
+        <!-- Structured technical dossier dynamically populated by DossierDrawer.js -->
+      </div>
+    </aside>
+
+    <!-- BOTTOM HUD STATUS & METRICS FOOTER -->
+    <footer class="hud-footer">
+      <div class="footer-stat-box">
+        <div class="stat-label">TOTAL INCIDENTS TRACKED</div>
+        <div class="stat-value-large" id="metric-total-incidents">0</div>
+        <div class="stat-label">CRITICAL IMPACT RATIO: <span class="stat-value-critical" id="metric-critical-ratio">0%</span></div>
+      </div>
+
+      <div class="sparkline-container">
+        <div class="sparkline-header">
+          <span>REAL-TIME ATTACK FREQUENCY (PPS)</span>
+          <span>ROLLING 30s WINDOW</span>
+        </div>
+        <canvas id="sparkline-canvas" width="480" height="42"></canvas>
+      </div>
+
+      <div class="footer-stat-box">
+        <div class="stat-label">VERIFIED REAL-WORLD ATTACKS</div>
+        <div class="stat-value-large" id="metric-real-count" style="color: #00ff9d;">0 VERIFIED</div>
+        <div class="stat-label">INGESTION: SANS ISC DSHIELD & IPSUM</div>
+      </div>
+
+      <div class="sectors-container" id="sectors-breakdown">
+        <!-- Real-time sector progress bars populated by HUD.js -->
+      </div>
+    </footer>
+  </div>
+
+  <!-- MAIN ENTRY MODULE -->
+  <script type="module" src="./src/main.js"></script>
+</body>
+</html>
